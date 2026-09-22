@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "description": "URL to user avatar" },
+        "createdAt": { "type": "number", "description": "Timestamp when the user account was created" }
+      },
+      "required": ["uid", "email"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "A conversation session metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Session ID" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Session title" },
+        "model": { "type": "string", "description": "Gemini model used" },
+        "personaId": { "type": "string", "description": "Persona ID used" },
+        "isAiThinking": { "type": "boolean", "description": "Whether the AI is currently generating a response" },
+        "updatedAt": { "type": "number", "description": "Last activity timestamp" },
+        "createdAt": { "type": "number", "description": "Creation timestamp" }
+      },
+      "required": ["id", "userId", "title", "model", "personaId", "updatedAt", "createdAt"]
+    },
+    "Persona": {
+      "title": "Persona",
+      "description": "A custom AI personality",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Persona ID" },
+        "name": { "type": "string", "description": "Persona name" },
+        "description": { "type": "string", "description": "Persona description" },
+        "systemInstruction": { "type": "string", "description": "System instructions for the model" },
+        "icon": { "type": "string", "description": "Visual icon" }
+      },
+      "required": ["name", "systemInstruction", "icon"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single message in a session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Message ID" },
+        "role": { "type": "string", "enum": ["user", "model"], "description": "Message sender role" },
+        "content": { "type": "string", "description": "Message text or media content" },
+        "timestamp": { "type": "number", "description": "Message timestamp" },
+        "senderName": { "type": "string", "description": "Optional sender display name" },
+        "sources": { "type": "array", "description": "Grounding sources if applicable" },
+        "searchQueries": { "type": "array", "description": "Search queries used by the model" }
+      },
+      "required": ["id", "role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Root collection for user profiles"
+    },
+    "/users/{userId}/personas/{personaId}": {
+      "schema": "Persona",
+      "description": "Custom personalities created by the user"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "Root collection for chat sessions"
+    },
+    "/sessions/{sessionId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Sub-collection of messages for a specific session"
+    }
+  }
+}

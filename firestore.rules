@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) 
+        && isValidUser(incoming());
+      allow update: if isOwner(userId) 
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt;
+
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'email'])
+          && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt'])
+          && data.uid == request.auth.uid
+          && data.email is string
+          && (data.displayName == null || data.displayName is string)
+          && (data.photoURL == null || data.photoURL is string);
+      }
+
+      // --- Custom Personas ---
+      match /personas/{personaId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidPersona(incoming());
+
+        function isValidPersona(data) {
+          return data.keys().hasAll(['name', 'systemInstruction', 'icon'])
+            && data.keys().hasOnly(['name', 'systemInstruction', 'icon', 'description', 'deleted'])
+            && data.name is string && data.name.size() <= 100
+            && data.systemInstruction is string && data.systemInstruction.size() <= 5000
+            && data.icon is string;
+        }
+      }
+    }
+
+    // --- Sessions ---
+    match /sessions/{sessionId} {
+      allow get, delete: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidSession(incoming())
+        && incoming().userId == request.auth.uid;
+        
+      allow update: if isOwner(existing().userId)
+        && isValidSession(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt;
+
+      function isValidSession(data) {
+        return data.keys().hasAll(['id', 'userId', 'title', 'model', 'personaId', 'updatedAt', 'createdAt'])
+          && data.keys().hasOnly(['id', 'userId', 'title', 'model', 'personaId', 'updatedAt', 'createdAt', 'isAiThinking'])
+          && data.id is string
+          && data.userId == request.auth.uid
+          && data.title is string && data.title.size() <= 200
+          && data.model is string
+          && data.personaId is string
+          && (data.updatedAt is number || data.updatedAt is timestamp)
+          && (data.createdAt is number || data.createdAt is timestamp)
+          && (data.isAiThinking == null || data.isAiThinking is bool);
+      }
+
+      // --- Messages ---
+      match /messages/{messageId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId);
+        
+        allow create: if isOwner(get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId)
+          && isValidMessage(incoming());
+          
+        allow update, delete: if false; // Messages are immutable in this app
+
+        function isValidMessage(data) {
+          return data.keys().hasAll(['id', 'role', 'content', 'timestamp'])
+            && data.keys().hasOnly(['id', 'role', 'content', 'timestamp', 'senderName', 'sources', 'searchQueries'])
+            && data.id is string
+            && data.role in ['user', 'model']
+            && data.content is string
+            && (data.timestamp is number || data.timestamp is timestamp);
+        }
+      }
+    }
+  }
+}

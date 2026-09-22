@@ -1,0 +1,6 @@
+{
+  "name": "OmniMind AI",
+  "description": "An advanced AI chat assistant for ideas and answers with Google Sheets export integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
